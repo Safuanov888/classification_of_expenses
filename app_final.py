@@ -5,6 +5,7 @@ import joblib
 from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
 
 load_dotenv()
 
@@ -14,7 +15,23 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', '0.5'))
 MAX_BATCH_SIZE = int(os.getenv('MAX_BATCH_SIZE', '10'))
 
-app = FastAPI(title=APP_NAME)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(f'Приложение {APP_NAME} запущено. Версия: {APP_VERSION}')
+    try:
+        app.state.model = joblib.load('expense_model.joblib')
+        logger.info('Модель успешно загружена')
+    except Exception as e:
+        logger.error(f'Ошибка при загрузке модели: {e}')
+        raise e
+    logger.info(f'Настройки: LOG_LEVEL={LOG_LEVEL}, CONFIDENCE_THRESHOLD={CONFIDENCE_THRESHOLD}')
+
+    yield
+    logger.info('Приложение закрывается')
+
+
+app = FastAPI(title=APP_NAME, lifespan=lifespan)
 
 
 class ExpenseRequest(BaseModel):
@@ -30,18 +47,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("Classification of expenses")
-
-
-@app.on_event('startup')
-def start():
-    logger.info(f'Приложение {APP_NAME} запущено. Версия: {APP_VERSION}')
-    try:
-        app.state.model = joblib.load('expense_model.joblib')
-        logger.info('Модель успешно загружена')
-    except Exception as e:
-        logger.error(f'Ошибка при загрузке модели: {e}')
-        raise e
-    logger.info(f'Настройки: LOG_LEVEL={LOG_LEVEL}, CONFIDENCE_THRESHOLD={CONFIDENCE_THRESHOLD}')
 
 
 def _predict_category(description: str):
