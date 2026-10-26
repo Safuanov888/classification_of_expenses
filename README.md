@@ -7,7 +7,7 @@
 
 ### 1. Клонирование репозитория и настройка окружения
 ```bash
-git clone https://github.com/ТВОЙ_НИК/classification_of_expenses.git
+git clone https://github.com/Safuanov888/classification_of_expenses.git
 cd classification_of_expenses
 python -m venv venv
 source venv/bin/activate
